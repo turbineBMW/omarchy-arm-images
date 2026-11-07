@@ -14,6 +14,10 @@ jobs:
           git clone --quiet https://github.com/omacom-io/omarchy-iso "$RUNNER_TEMP/omarchy-iso"
           cd "$RUNNER_TEMP/omarchy-iso"
           git checkout --quiet "$(cat "$GITHUB_WORKSPACE/iso/OMARCHY_ISO_COMMIT")"
+          # The archiso submodule too, which the omarchy-iso workflow checks
+          # out. Under CI its aarch64 build test fails without it, since that
+          # is where it checks the arm64 archiso patches.
+          git submodule update --init --quiet
           git -c user.name=ci -c user.email=ci@localhost am --quiet "$GITHUB_WORKSPACE"/iso/patches/*.patch
       # omarchy-iso's own way (.github/workflows/unit-test.yml): Arch with
       # systemd running, for localectl's keymaps, and an ordinary user.
@@ -27,14 +31,16 @@ jobs:
                 systemd-vconsole-setup.service
               exec /usr/lib/systemd/systemd
             '
-          docker exec unit bash -euo pipefail -c '
+          docker exec -e CI -e GITHUB_ACTIONS unit bash -euo pipefail -c '
             for i in $(seq 1 60); do
               state=$(systemctl is-system-running 2>/dev/null || true)
               case $state in running | degraded) break ;; esac
               sleep 1
             done
+            # From the omarchy-iso mirror first, as its own workflow does.
+            sed -i "1i Server = https://mirror.omarchy.org/\$repo/os/\$arch" /etc/pacman.d/mirrorlist
             for attempt in 1 2 3; do
-              pacman -Syu --noconfirm --needed python parted diffutils jq zip unzip openssh patch git >/dev/null && break
+              pacman -Syu --noconfirm --needed python parted gcc diffutils jq zip unzip openssh patch git terminus-font imagemagick tesseract tesseract-data-eng >/dev/null && break
               [ "$attempt" -lt 3 ] || exit 1
               sleep 15
             done
