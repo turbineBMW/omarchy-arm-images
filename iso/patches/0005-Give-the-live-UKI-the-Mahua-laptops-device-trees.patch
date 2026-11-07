@@ -1,0 +1,61 @@
+From 837c1f8d97e8d903858fee1130302e53730d350e Mon Sep 17 00:00:00 2001
+From: Brandon Williams <turbine.bmw@gmail.com>
+Date: Sat, 7 Nov 2026 17:54:55 -0500
+Subject: [PATCH] Give the live UKI the Mahua laptops' device trees
+
+Omarchy's kernel ships device trees for three laptops on Mahua, the
+smaller Snapdragon X2: the HP OmniBook 5 16-bf1, the HP OmniBook X 16-cp1
+and the ThinkPad T14s Gen 7. Their hardware IDs are in the UKI's .hwids,
+but the live UKI took only x1, hamoa, glymur and sc8280xp trees, so
+systemd-stub matched those laptops and had no tree to give them.
+
+Mahua's trees use Glymur's clock, display, GPU and DSP compatibles, and
+pinctrl-glymur and tcsrcc-glymur bind its TLMM and TCSR, so the live
+initramfs already carries what they need. That makes 68 trees, under
+the section budget of 90.
+---
+ builder/qualcomm/live-uki.sh       | 3 ++-
+ test/unit/test_qcom_shared_boot.py | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/builder/qualcomm/live-uki.sh b/builder/qualcomm/live-uki.sh
+index d76f36d..ec3fd17 100755
+--- a/builder/qualcomm/live-uki.sh
++++ b/builder/qualcomm/live-uki.sh
+@@ -17,10 +17,11 @@ hwids=/usr/lib/systemd/boot/hwids/aa64
+ dtb_dir=/boot/dtbs/$1/qcom
+ 
+ # Include supported Snapdragon generations while staying below the UKI section limit.
++# Mahua, the smaller X2, runs on the Glymur drivers the live initramfs carries.
+ # EL2 variants share hardware IDs with their base DTBs and would be ambiguous.
+ shopt -s nullglob
+ dtbs=()
+-for dtb in "$dtb_dir"/x1*.dtb "$dtb_dir"/hamoa*.dtb "$dtb_dir"/glymur*.dtb "$dtb_dir"/sc8280xp*.dtb; do
++for dtb in "$dtb_dir"/x1*.dtb "$dtb_dir"/hamoa*.dtb "$dtb_dir"/glymur*.dtb "$dtb_dir"/mahua*.dtb "$dtb_dir"/sc8280xp*.dtb; do
+   [[ $dtb == *-el2.dtb ]] && continue
+   dtbs+=("$dtb")
+ done
+diff --git a/test/unit/test_qcom_shared_boot.py b/test/unit/test_qcom_shared_boot.py
+index 13acdd9..c61de28 100644
+--- a/test/unit/test_qcom_shared_boot.py
++++ b/test/unit/test_qcom_shared_boot.py
+@@ -98,14 +98,14 @@ else:
+ 
+     def test_dedicated_initramfs_keeps_direct_boot_untouched(self):
+         dtb_root=self.root/'boot/dtbs/test/qcom'
+-        for name in ('x1-test.dtb','glymur-test.dtb','x1-test-el2.dtb','sm8550-test.dtb'):
++        for name in ('x1-test.dtb','glymur-test.dtb','mahua-test.dtb','x1-test-el2.dtb','sm8550-test.dtb'):
+             (dtb_root/name).write_bytes(b'dtb')
+         result=self.builder(); self.assertEqual(result.returncode,0,result.stderr)
+         self.assertEqual(self.initrd.read_bytes(),b'original initramfs')
+         call=json.loads((self.root/'mkinitcpio-call.json').read_text())
+         self.assertIn('qcom_early_startup',call['args'])
+         self.assertEqual(call['args'][call['args'].index('-c')+1],str(self.config))
+-        self.assertIn('x1-test.dtb',call['dtbs']); self.assertIn('glymur-test.dtb',call['dtbs'])
++        self.assertIn('x1-test.dtb',call['dtbs']); self.assertIn('glymur-test.dtb',call['dtbs']); self.assertIn('mahua-test.dtb',call['dtbs'])
+         self.assertNotIn('el2',call['dtbs']); self.assertNotIn('sm8550',call['dtbs'])
+         self.assertFalse(Path(call['args'][call['args'].index('-g')+1]).exists())
+ 
+-- 
+2.56.0
+
