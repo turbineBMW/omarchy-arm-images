@@ -32,7 +32,7 @@ Without a recipe on the stick, the recipe patches do nothing. How recipes work a
 
 ```sh
 bin/build-iso                       # the ISO, in omarchy-iso's privileged build container
-PRERELEASE=1 bin/publish-iso ISO    # the release the apps find (needs unsquashfs and gh)
+bin/publish-iso ISO                 # the release the apps find (needs unsquashfs and gh)
 bin/iso-offline-db ISO DB           # just the offline mirror database
 ```
 
