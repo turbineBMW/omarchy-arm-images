@@ -5,7 +5,7 @@
 #
 #   bin/publish-iso ISO
 #
-# PRERELEASE=1 marks it untested.
+# PRERELEASE=1 marks it a pre-release.
 set -euo pipefail
 
 root=$(realpath "${BASH_SOURCE[0]%/*}/..")
@@ -40,6 +40,6 @@ echo "==> Release $tag on $repo"
 flags=()
 [[ ${PRERELEASE:-} != 1 ]] || flags=(--prerelease)
 gh release view "$tag" -R "$repo" >/dev/null 2>&1 ||
-  gh release create "$tag" -R "$repo" "${flags[@]}" --title "Installer $date${PRERELEASE:+ (untested)}" --notes \
+  gh release create "$tag" -R "$repo" "${flags[@]}" --title "Installer $date" --notes \
 "The Omarchy installer image for Arm laptops, $date. The Omarchy Arm installer and the model installers made from omarchy-arm-installer-recipes download it: they join the parts, check them against $name.sha256, and put the laptop's firmware and any device recipe on the stick. From Linux: cat the parts in order into $name, check it against $name.sha256, then use an installer repository's bin/make-usb."
 gh release upload "$tag" -R "$repo" --clobber "${assets[@]}"
